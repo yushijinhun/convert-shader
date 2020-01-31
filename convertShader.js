@@ -121,6 +121,7 @@ exports.convert = function* (code) {
                     endIdx = token.end;
                     postProcess.every(it => it());
                     const text = lines.join("\n")
+                        .replace(/[ \t]+(?=\n|$)/g, "")
                         .replace(/(^([ \t]*\n)+)|(([ \t]*\n)+$)/g, "");
                     yield {
                         start: startIdx,
