@@ -119,7 +119,9 @@ exports.convert = function* (code) {
             case 9:
                 if (token.type.label === ")") {
                     endIdx = token.end;
-                    postProcess.every(it => it());
+                    for (const handle of postProcess) {
+                        handle();
+                    }
                     const text = lines.join("\n")
                         .replace(/[ \t]+(?=\n|$)/g, "")
                         .replace(/(^([ \t]*\n)+)|(([ \t]*\n)+$)/g, "");
@@ -142,11 +144,22 @@ exports.convert = function* (code) {
             if (lastLineEnd !== -1) {
                 const whitespaces = code.substring(lastLineEnd, start);
                 if (whitespaces.includes("\n")) {
+                    let first = true;
+                    for (const ch of whitespaces) {
+                        if (ch === "\n") {
+                            if (first) {
+                                first = false;
+                            } else {
+                                lines.push("");
+                            }
+                        }
+                    }
                     // we have to guess the indent
                     const lineIdx = lines.length;
                     lines.push(commentText);
                     postProcess.push(() => {
                         function lookupIndent(delta) {
+                            let skippedLines = 0;
                             for (let i = lineIdx + delta; lines[i] !== undefined; i += delta) {
                                 const trimed = lines[i].trim();
                                 if (!trimed.startsWith("//") && !trimed.startsWith("/*") && lines[i] !== "") {
@@ -155,9 +168,11 @@ exports.convert = function* (code) {
                                         k++;
                                     return {
                                         indent: lines[i].substring(0, k),
-                                        line: lines[i]
+                                        line: lines[i],
+                                        skippedLines: skippedLines
                                     };
                                 }
+                                skippedLines++;
                             }
                             return null;
                         }
@@ -180,7 +195,18 @@ exports.convert = function* (code) {
                             } else if (")]}".includes(lineDown[0]) || lineDown.startsWith("#endif")) {
                                 indent = indentUp.indent;
                             } else {
-                                throw "idk how to handle: " + commentText;
+                                if (indentUp.skippedLines === 0 && indentDown.skippedLines !== 0) {
+                                    indent = indentUp.indent;
+                                } else if (indentUp.skippedLines !== 0 && indentDown.skippedLines === 0) {
+                                    indent = indentDown.indent;
+                                } else {
+                                    // we really need to guess one
+                                    if (indentUp.indent.length > indentDown.indent.length) {
+                                        indent = indentDown.indent;
+                                    } else {
+                                        indent = indentUp.indent;
+                                    }
+                                }
                             }
                         }
                         lines[lineIdx] = indent + lines[lineIdx];
