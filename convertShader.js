@@ -29,7 +29,7 @@ exports.convert = function* (code) {
                 }
                 break;
             case 1:
-                if (token.type.label === ":") {
+                if (token.type.label === ":" || token.type.label === "=") {
                     state++;
                 } else {
                     state = 0;
